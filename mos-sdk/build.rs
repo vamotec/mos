@@ -11,8 +11,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_server(false)
         .out_dir("src/grpc")
         .compile_protos(
-            &["../mos-core/proto/mos.proto"],
-            &["../mos-core/proto"],
+            &["../mos-core/proto/mos.proto", "proto/mos_sdk.proto"],
+            &["../mos-core/proto", "proto/"],
         )?;
 
     Ok(())

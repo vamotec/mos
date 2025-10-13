@@ -1,4 +1,5 @@
 use super::mos;
+use crate::hal::robot_controller::RobotController;
 use crate::scheduler::scheduler::TaskCommand;
 use crate::types::{Task, TaskState, TelemetryData};
 use std::pin::Pin;
@@ -11,6 +12,7 @@ use tonic::{Request, Response, Status};
 pub struct MosService {
     scheduler_tx: mpsc::Sender<TaskCommand>,
     telemetry_tx: broadcast::Sender<TelemetryData>,
+    robot_controller: Arc<Box<dyn RobotController>>,
     // Use an atomic counter for mock task IDs
     task_id_counter: Arc<AtomicU64>,
 }
@@ -19,10 +21,12 @@ impl MosService {
     pub fn new(
         scheduler_tx: mpsc::Sender<TaskCommand>,
         telemetry_tx: broadcast::Sender<TelemetryData>,
+        robot_controller: Arc<Box<dyn RobotController>>,
     ) -> Self {
         Self {
             scheduler_tx,
             telemetry_tx,
+            robot_controller,
             task_id_counter: Arc::new(AtomicU64::new(1)),
         }
     }
@@ -99,5 +103,38 @@ impl mos::mos_server::Mos for MosService {
 
         let stream = ReceiverStream::new(rx);
         Ok(Response::new(Box::pin(stream) as Self::StreamTelemetryStream))
+    }
+
+    async fn set_joint_angles(
+        &self,
+        request: Request<mos::SetJointAnglesRequest>,
+    ) -> Result<Response<mos::CommandResponse>, Status> {
+        let angles = request.into_inner().angles;
+        log::info!("gRPC: Received set_joint_angles request: {:?}", angles);
+
+        self.robot_controller
+            .set_joint_angles(&angles)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to set joint angles: {}", e)))?;
+
+        Ok(Response::new(mos::CommandResponse {
+            success: true,
+            message: "Joint angles set successfully".into(),
+        }))
+    }
+
+    async fn get_joint_angles(
+        &self,
+        _request: Request<mos::GetJointAnglesRequest>,
+    ) -> Result<Response<mos::GetJointAnglesResponse>, Status> {
+        log::info!("gRPC: Received get_joint_angles request");
+
+        let angles = self
+            .robot_controller
+            .get_joint_angles()
+            .await
+            .map_err(|e| Status::internal(format!("Failed to get joint angles: {}", e)))?;
+
+        Ok(Response::new(mos::GetJointAnglesResponse { angles }))
     }
 }

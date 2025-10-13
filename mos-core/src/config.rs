@@ -1,3 +1,4 @@
+use crate::hal::robot_controller::RobotControllerConfig;
 use serde::Deserialize;
 use std::fs;
 use thiserror::Error;
@@ -16,6 +17,7 @@ pub struct Config {
     pub scheduler_max_tasks: usize,
     pub grpc_port: u16,
     pub wasm_runtime: String, // e.g., "wasmtime"
+    pub robot_controller: RobotControllerConfig,
 }
 
 impl Config {

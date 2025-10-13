@@ -1,4 +1,6 @@
 /target
 
 .idea
-*/.idea
+.git
+.vscode
+.DS_Store
