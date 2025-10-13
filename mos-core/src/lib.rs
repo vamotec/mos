@@ -10,10 +10,12 @@ pub mod telemetry;
 pub mod types;
 
 use crate::grpc::server::MosService;
+use crate::hal::robot_controller::{create_robot_controller, RobotController};
 use crate::scheduler::scheduler::{Scheduler, TaskCommand};
 use crate::types::TelemetryData;
 pub use config::Config;
 pub use error::MosError;
+use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc};
 use tonic::transport::Server;
 
@@ -23,11 +25,12 @@ pub struct MosCore {
     scheduler_tx: mpsc::Sender<TaskCommand>,
     telemetry_tx: broadcast::Sender<TelemetryData>,
     scheduler: Option<Scheduler>,
+    robot_controller: Arc<Box<dyn RobotController>>,
 }
 
 impl MosCore {
     /// 创建 MOS 核心实例
-    pub fn new(config: Config) -> Result<Self, MosError> {
+    pub fn new(config: Config, robot_controller: Box<dyn RobotController>) -> Result<Self, MosError> {
         let (scheduler, scheduler_tx) = Scheduler::new();
         let (telemetry_tx, _) = broadcast::channel(100); // Capacity of 100
         Ok(Self {
@@ -35,6 +38,7 @@ impl MosCore {
             scheduler: Some(scheduler),
             scheduler_tx,
             telemetry_tx,
+            robot_controller: Arc::new(robot_controller),
         })
     }
 
@@ -45,7 +49,11 @@ impl MosCore {
         }
 
         let addr = format!("[::1]:{}", self.config.grpc_port).parse().unwrap();
-        let mos_service = MosService::new(self.scheduler_tx.clone(), self.telemetry_tx.clone());
+        let mos_service = MosService::new(
+            self.scheduler_tx.clone(),
+            self.telemetry_tx.clone(),
+            self.robot_controller.clone(),
+        );
 
         log::info!("gRPC server listening on {}", addr);
 
@@ -60,9 +68,13 @@ impl MosCore {
 }
 
 // 提供便捷的初始化函数
-pub fn init(config_path: &str) -> Result<MosCore, MosError> {
+pub async fn init(config_path: &str) -> Result<MosCore, MosError> {
     let config = Config::from_file(config_path)?;
     logging::init_logging(&config.log_level)
         .map_err(|e| MosError::SchedulerError(e.to_string()))?; // TODO: Better error type
-    MosCore::new(config)
+
+    // Create the robot controller using the factory
+    let robot_controller = create_robot_controller(&config.robot_controller).await?;
+
+    MosCore::new(config, robot_controller)
 }

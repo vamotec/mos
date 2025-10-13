@@ -1,0 +1,12 @@
+.git
+.idea
+.vscode
+.DS_Store
+
+# Ignore Rust build artifacts
+target/
+
+# Ignore ROS2 build artifacts
+mos-ros2/build/
+mos-ros2/install/
+mos-ros2/log/

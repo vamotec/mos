@@ -1,0 +1,208 @@
+syntax = "proto3";
+
+package mos.robot.v1;
+
+// ===================================================================
+//  Service Definition
+// ===================================================================
+
+// RobotController Service 定义了与机器人硬件交互的所有接口
+service RobotController {
+  // --- Motion Control ---
+
+  // 控制机器人移动到指定的目标关节角度
+  rpc MoveToJointTarget(MoveToJointTargetRequest) returns (CommandResponse);
+
+  // 控制机器人末端执行器移动到指定的笛卡尔空间位姿
+  rpc MoveToPoseTarget(MoveToPoseTargetRequest) returns (CommandResponse);
+
+  // 控制机器人末端执行器在笛卡尔空间内进行直线移动
+  rpc MoveLinear(MoveLinearRequest) returns (CommandResponse);
+
+  // --- State & Telemetry ---
+
+  // 获取机器人当前的关节状态 (角度, 速度, 力矩)
+  rpc GetJointState(GetJointStateRequest) returns (GetJointStateResponse);
+
+  // 获取机器人末端执行器当前的笛卡尔空间位姿
+  rpc GetPose(GetPoseRequest) returns (GetPoseResponse);
+
+  // 获取机器人整体状态 (例如: IDLE, MOVING, ERROR)
+  rpc GetRobotStatus(GetRobotStatusRequest) returns (GetRobotStatusResponse);
+
+  // 订阅(流式接收)机器人关节状态的实时数据
+  rpc StreamJointState(StreamJointStateRequest) returns (stream GetJointStateResponse);
+
+  // --- Configuration ---
+
+  // 设置全局的运动参数，如速度和加速度比例
+  rpc SetMotionParameters(SetMotionParametersRequest) returns (CommandResponse);
+
+  // 设置工具中心点(TCP)相对于法兰盘的位姿
+  rpc SetToolFrame(SetToolFrameRequest) returns (CommandResponse);
+
+  // 设置机器人携带的负载信息 (重量和质心)
+  rpc SetPayload(SetPayloadRequest) returns (CommandResponse);
+
+  // --- End-Effector Control ---
+
+  // 设置数字输出端口的状态 (常用于简单夹爪)
+  rpc SetDigitalOut(SetDigitalOutRequest) returns (CommandResponse);
+
+  // 获取数字输入端口的状态
+  rpc GetDigitalIn(GetDigitalInRequest) returns (GetDigitalInResponse);
+
+  // --- Safety & System ---
+
+  // 触发紧急停止
+  rpc EmergencyStop(EmergencyStopRequest) returns (CommandResponse);
+
+  // 清除故障/错误状态
+  rpc ClearFaults(ClearFaultsRequest) returns (CommandResponse);
+
+  // 控制机器人伺服电机上电/下电
+  rpc SetPower(SetPowerRequest) returns (CommandResponse);
+
+  // --- Program Execution ---
+
+  // 执行一个预定义的程序
+  rpc ExecuteProgram(ExecuteProgramRequest) returns (CommandResponse);
+}
+
+
+// ===================================================================
+//  Message Definitions
+// ===================================================================
+
+// --- Common Messages ---
+
+message Vector3 {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message Quaternion {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+  double w = 4;
+}
+
+message Pose {
+  Vector3 position = 1;
+  Quaternion orientation = 2;
+}
+
+// 通用的指令响应消息
+message CommandResponse {
+  bool success = 1;
+  string message = 2; // 包含成功或失败的详细信息
+  string command_id = 3; // 用于追踪指令的唯一ID
+}
+
+// --- Motion Messages ---
+
+message MoveToJointTargetRequest {
+  // 目标关节角度数组 (弧度)
+  repeated double joint_positions = 1;
+  // 可选: 运动速度比例 (0.0 to 1.0)
+  optional float speed_ratio = 2;
+  // 可选: 运动加速度比例 (0.0 to 1.0)
+  optional float acceleration_ratio = 3;
+}
+
+message MoveToPoseTargetRequest {
+  Pose target_pose = 1;
+  optional float speed_ratio = 2;
+  optional float acceleration_ratio = 3;
+}
+
+message MoveLinearRequest {
+  Pose target_pose = 1;
+  // 直线运动速度 (例如: m/s)
+  optional float speed = 2;
+}
+
+// --- State & Telemetry Messages ---
+
+message GetJointStateRequest {}
+message GetJointStateResponse {
+  repeated double position = 1;
+  repeated double velocity = 2;
+  repeated double effort = 3; // or torque
+}
+
+message GetPoseRequest {}
+message GetPoseResponse {
+  Pose pose = 1;
+}
+
+message GetRobotStatusRequest {}
+message GetRobotStatusResponse {
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    IDLE = 1;
+    MOVING = 2;
+    STOPPED = 3;
+    ERROR = 4;
+    EMERGENCY_STOPPED = 5;
+  }
+  Status status = 1;
+  string error_message = 2;
+}
+
+message StreamJointStateRequest {
+  // 数据发布的频率 (Hz)
+  int32 publish_frequency = 1;
+}
+
+// --- Configuration Messages ---
+
+message SetMotionParametersRequest {
+  // 全局速度比例 (0.0 to 1.0)
+  float speed_ratio = 1;
+  // 全局加速度比例 (0.0 to 1.0)
+  float acceleration_ratio = 2;
+}
+
+message SetToolFrameRequest {
+  // TCP相对于法兰盘的位姿
+  Pose tcp_pose = 1;
+}
+
+message SetPayloadRequest {
+  // 负载重量 (kg)
+  float mass = 1;
+  // 负载质心相对于TCP的坐标
+  Vector3 center_of_gravity = 2;
+}
+
+// --- End-Effector Messages ---
+
+message SetDigitalOutRequest {
+  int32 pin_number = 1;
+  bool state = 2; // true for HIGH, false for LOW
+}
+
+message GetDigitalInRequest {
+  int32 pin_number = 1;
+}
+message GetDigitalInResponse {
+  int32 pin_number = 1;
+  bool state = 2;
+}
+
+// --- Safety & System Messages ---
+
+message EmergencyStopRequest {}
+message ClearFaultsRequest {}
+message SetPowerRequest {
+  bool enable = 1; // true for power on, false for power off
+}
+
+// --- Program Execution Messages ---
+
+message ExecuteProgramRequest {
+  string program_name = 1;
+}

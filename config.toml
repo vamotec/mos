@@ -1,4 +1,9 @@
 log_level = "info"
 scheduler_max_tasks = 100
-grpc_port = 50051
+grpc_port = 50052
 wasm_runtime = "wasmtime"
+
+# Configuration for the Robot Controller
+[robot_controller]
+controller_type = "mock" # can be "grpc" or "mock"
+# address = "http://localhost:50052" # Uncomment and use for grpc type

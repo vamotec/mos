@@ -17,4 +17,7 @@ pub enum MosError {
 
     #[error("HAL error: {0}")]
     HalError(String),
+
+    #[error("Robot controller error: {0}")]
+    RobotControllerError(String),
 }

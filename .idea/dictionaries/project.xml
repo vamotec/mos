@@ -1,7 +1,10 @@
 <component name="ProjectDictionaryState">
   <dictionary name="project">
     <words>
+      <w>buildsystems</w>
+      <w>libprotobuf</w>
       <w>prost</w>
+      <w>rclcpp</w>
       <w>vamotec</w>
       <w>wasmtime</w>
     </words>
