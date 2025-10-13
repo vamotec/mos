@@ -1,0 +1,23 @@
+[package]
+name = "mos-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+mos-core = { workspace = true, features = ["types"] }
+log = { workspace = true }
+clap = { workspace = true }
+tokio = { workspace = true }
+tonic = { workspace = true }
+prost = { workspace = true }
+tonic-prost = { workspace = true }
+anyhow = { workspace = true }
+env_logger = { workspace = true }
+tokio-stream = { workspace = true }
+# These are needed for the generated gRPC code and stream handling
+chrono = { workspace = true }
+async-stream = { workspace = true }
+
+
+[build-dependencies]
+tonic-prost-build = { workspace = true }

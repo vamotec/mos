@@ -1,0 +1,4 @@
+log_level = "info"
+scheduler_max_tasks = 100
+grpc_port = 50051
+wasm_runtime = "wasmtime"

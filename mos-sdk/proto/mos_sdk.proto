@@ -1,0 +1,56 @@
+// mos-sdk/proto/mos_sdk.proto
+syntax = "proto3";
+package mos_sdk;
+
+service MosSdk {
+  rpc Move (MoveRequest) returns (MoveResponse);
+  rpc GetImage (GetImageRequest) returns (GetImageResponse);
+  rpc StartSkill (StartSkillRequest) returns (StartSkillResponse);
+  rpc StopSkill (StopSkillRequest) returns (StopSkillResponse);
+  rpc UploadMetrics (UploadMetricsRequest) returns (UploadMetricsResponse);
+}
+
+message MoveRequest {
+  repeated double joint_targets = 1;
+}
+
+message MoveResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetImageRequest {
+  string camera_id = 1;
+}
+
+message GetImageResponse {
+  bytes image_data = 1;
+  int64 timestamp = 2;
+}
+
+message StartSkillRequest {
+  string skill_id = 1;
+}
+
+message StartSkillResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message StopSkillRequest {
+  string skill_id = 1;
+}
+
+message StopSkillResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message UploadMetricsRequest {
+  map<string, string> metrics = 1;
+}
+
+message UploadMetricsResponse {
+  bool success = 1;
+  string message = 2;
+}

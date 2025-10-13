@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package mos;
+
+// 主服务：统一的机器人任务与遥测流接口
+service Mos {
+  // 一次性任务调度（请求 -> 响应）
+  rpc ScheduleTask (TaskRequest) returns (TaskResponse);
+
+  // 双向流式遥测通信（客户端可以发送 TelemetryRequest，服务端推送 TelemetryData）
+  rpc StreamTelemetry (stream TelemetryRequest) returns (stream TelemetryData);
+}
+
+//
+// ================== Task 模块 ==================
+//
+message TaskRequest {
+  optional int64 id = 1; // 任务 ID，客户端可选，由服务器分配
+  uint32 priority = 2;    // 优先级
+}
+
+message TaskResponse {
+  uint64 id = 1;          // 返回任务 ID（通常与请求一致）
+}
+
+//
+// ================== Telemetry 模块 ==================
+//
+message TelemetryRequest {
+  string sensor_id = 1;   // 传感器 ID，例如 "camera_1"、"lidar_2"
+  bytes data = 2;         // 原始遥测数据（可选）
+  uint64 timestamp = 3;    // 时间戳（Unix 秒）
+}
+
+// ✅ 新的 TelemetryData，用于流式下行
+message TelemetryData {
+  string source = 1;      // 数据来源，例如 "mock_sensor"
+  double value = 2;       // 传感器数值
+  uint64 timestamp = 3;    // 时间戳（秒）
+}
+
+//
+// ================== 通用响应（可选扩展） ==================
+//
+// 如果未来某些 RPC 需要返回状态/错误信息，可以继续使用这个结构。
+message TelemetryResponse {
+  int64 id = 1;           // 响应 ID
+  bool success = 2;        // 是否成功
+  string message = 3;      // 响应消息
+}

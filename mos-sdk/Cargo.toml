@@ -1,0 +1,18 @@
+[package]
+name = "mos-sdk"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tonic = { workspace = true }
+prost = { workspace = true }
+tonic-prost = { workspace = true }
+anyhow = { workspace = true }
+mos-core = { workspace = true, features = ["types"] }
+
+[build-dependencies]
+tonic-prost-build = { workspace = true }
+
+[features]
+default = []
+types = []

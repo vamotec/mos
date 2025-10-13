@@ -1,0 +1,32 @@
+[package]
+name = "mos-core"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "mos-core"
+path = "src/main.rs"
+
+[dependencies]
+async-trait = { workspace = true }
+log = { workspace = true }
+anyhow = { workspace = true }
+env_logger = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+tonic = { workspace = true }
+prost = { workspace = true }
+tonic-prost = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+wasmtime = { workspace = true, optional = true }
+wasmtime-wasi = { workspace = true, optional = true }
+
+[build-dependencies]
+tonic-prost-build = { workspace = true }
+
+[features]
+default = ["wasm"]
+types = []
+wasm = ["dep:wasmtime", "dep:wasmtime-wasi"]
