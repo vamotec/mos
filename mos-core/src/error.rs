@@ -20,4 +20,7 @@ pub enum MosError {
 
     #[error("Robot controller error: {0}")]
     RobotControllerError(String),
+
+    #[error("Other error: {0}")]
+    Other(String),
 }

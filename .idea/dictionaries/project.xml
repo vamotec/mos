@@ -3,8 +3,10 @@
     <words>
       <w>buildsystems</w>
       <w>libprotobuf</w>
+      <w>mosia</w>
       <w>prost</w>
       <w>rclcpp</w>
+      <w>rosbridge</w>
       <w>vamotec</w>
       <w>wasmtime</w>
     </words>

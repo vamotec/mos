@@ -9,6 +9,7 @@ use tokio::sync::{broadcast, mpsc};
 use tokio_stream::{Stream, wrappers::ReceiverStream};
 use tonic::{Request, Response, Status};
 
+#[derive(Clone)]
 pub struct MosService {
     scheduler_tx: mpsc::Sender<TaskCommand>,
     telemetry_tx: broadcast::Sender<TelemetryData>,

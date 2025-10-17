@@ -1,0 +1,25 @@
+[package]
+name = "mos-viz-agent"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true, features = ["full"] }
+tokio-tungstenite = { workspace = true, features = ["native-tls"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+log = { workspace = true }
+
+# For future gRPC client use to call mos-ros2
+tonic = { workspace = true }
+prost = { workspace = true }
+tonic-prost = { workspace = true }
+url = { workspace = true }
+futures-util = { workspace = true }
+toml = { workspace = true }
+anyhow = { workspace = true }
+tower = { workspace = true }
+hyper-util = { workspace = true }
+
+[build-dependencies]
+tonic-prost-build = { workspace = true }

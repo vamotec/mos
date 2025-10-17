@@ -22,6 +22,8 @@ thiserror = { workspace = true }
 toml = { workspace = true }
 wasmtime = { workspace = true, optional = true }
 wasmtime-wasi = { workspace = true, optional = true }
+tower = { workspace = true }
+hyper-util = { workspace = true }
 
 [build-dependencies]
 tonic-prost-build = { workspace = true }

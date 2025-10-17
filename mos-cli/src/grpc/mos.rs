@@ -63,21 +63,6 @@ pub struct TelemetryData {
     #[prost(uint64, tag = "3")]
     pub timestamp: u64,
 }
-/// ================== 通用响应（可选扩展） ==================
-///
-/// 如果未来某些 RPC 需要返回状态/错误信息，可以继续使用这个结构。
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct TelemetryResponse {
-    /// 响应 ID
-    #[prost(int64, tag = "1")]
-    pub id: i64,
-    /// 是否成功
-    #[prost(bool, tag = "2")]
-    pub success: bool,
-    /// 响应消息
-    #[prost(string, tag = "3")]
-    pub message: ::prost::alloc::string::String,
-}
 /// Generated client implementations.
 pub mod mos_client {
     #![allow(

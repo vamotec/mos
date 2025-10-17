@@ -15,8 +15,11 @@ use crate::scheduler::scheduler::{Scheduler, TaskCommand};
 use crate::types::TelemetryData;
 pub use config::Config;
 pub use error::MosError;
+use log::error;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc};
+use tokio::net::UnixListener;
+use tokio_stream::wrappers::UnixListenerStream;
 use tonic::transport::Server;
 
 // MOS 核心结构体，整合所有功能
@@ -48,20 +51,56 @@ impl MosCore {
             tokio::spawn(scheduler.run());
         }
 
-        let addr = format!("[::1]:{}", self.config.grpc_port).parse().unwrap();
         let mos_service = MosService::new(
             self.scheduler_tx.clone(),
             self.telemetry_tx.clone(),
             self.robot_controller.clone(),
         );
 
-        log::info!("gRPC server listening on {}", addr);
+        // --- Server 1: UDS for production/secure IPC ---
+        let uds_service = grpc::mos::mos_server::MosServer::new(mos_service.clone());
+        let socket_path = self.config.core_grpc_socket.clone();
+        let uds_server_future = async move {
+            if std::fs::metadata(&socket_path).is_ok() {
+                log::info!("Removing existing UDS socket file: {}", &socket_path);
+                let _ = std::fs::remove_file(&socket_path);
+            }
+            let uds = UnixListener::bind(&socket_path)
+                .map_err(|e| MosError::Other(format!("Failed to bind UDS: {}", e)))?;
+            let uds_stream = UnixListenerStream::new(uds);
+            log::info!("gRPC server listening on UDS: {}", socket_path);
+            Server::builder()
+                .add_service(uds_service)
+                .serve_with_incoming(uds_stream)
+                .await
+                .map_err(|e| MosError::Other(e.to_string()))
+        };
 
-        Server::builder()
-            .add_service(grpc::mos::mos_server::MosServer::new(mos_service))
-            .serve(addr)
-            .await
-            .map_err(|e| MosError::SchedulerError(e.to_string()))?; // TODO: Better error type
+        // --- Server 2: TCP for development/CLI ---
+        let tcp_service = grpc::mos::mos_server::MosServer::new(mos_service);
+        let addr = format!("[::1]:{}", self.config.grpc_port).parse().unwrap();
+        let tcp_server_future = async move {
+            log::info!("gRPC server listening on TCP: {}", addr);
+            Server::builder()
+                .add_service(tcp_service)
+                .serve(addr)
+                .await
+                .map_err(|e| MosError::Other(e.to_string()))
+        };
+
+        // Run both servers concurrently. If either fails, the whole thing stops.
+        tokio::select! {
+            res = uds_server_future => {
+                if let Err(e) = res {
+                    error!("UDS server failed: {}", e);
+                }
+            },
+            res = tcp_server_future => {
+                if let Err(e) = res {
+                    error!("TCP server failed: {}", e);
+                }
+            },
+        }
 
         Ok(())
     }

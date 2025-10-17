@@ -3,4 +3,4 @@
 .idea
 .git
 .vscode
-.DS_Store
+.DS_Store\n# Runtime directory for sockets and pids\n/run/

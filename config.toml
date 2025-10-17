@@ -1,9 +1,19 @@
 log_level = "info"
 scheduler_max_tasks = 100
-grpc_port = 50052
+grpc_port = 50052 # Port for mos-core's gRPC server (for CLI, dev)
+core_grpc_socket = "run/mos-core.sock" # For mos-cli to connect to mos-core
 wasm_runtime = "wasmtime"
 
-# Configuration for the Robot Controller
+# Configuration for the Robot Controller (mos-ros2 service)
 [robot_controller]
-controller_type = "mock" # can be "grpc" or "mock"
-# address = "http://localhost:50052" # Uncomment and use for grpc type
+controller_type = "grpc"
+# This is the socket that mos-ros2 server will listen on
+# Both mos-core and mos-viz-agent will connect to this as clients.
+ros2_grpc_socket = "run/mos-ros2.sock"
+ros2_grpc_address = "http://127.0.0.1:50051" # For development on Mac/Windows
+
+# mos-viz-agent configuration
+[viz_agent]
+rosbridge_url = "ws://127.0.0.1:9090"
+cloud_url = "ws://127.0.0.1:8080"
+# Note: The gRPC address for mos-ros2 is now read from the [robot_controller] section
