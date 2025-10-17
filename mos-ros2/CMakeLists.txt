@@ -4,6 +4,7 @@ project(mos_ros2)
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(trajectory_msgs REQUIRED)
 
 # Explicitly tell CMake where to find the gRPC and Protobuf packages
 list(APPEND CMAKE_PREFIX_PATH "/vcpkg/installed/arm64-linux")
@@ -70,9 +71,14 @@ target_include_directories(ros2_grpc_server PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-# 链接库
+# Link ROS dependencies using ament
+ament_target_dependencies(ros2_grpc_server
+    rclcpp
+    trajectory_msgs
+)
+
+# Link system dependencies (from vcpkg)
 target_link_libraries(ros2_grpc_server
-    rclcpp::rclcpp
     gRPC::grpc++
     protobuf::libprotobuf
 )

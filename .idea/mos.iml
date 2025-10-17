@@ -8,6 +8,7 @@
       <sourceFolder url="file://$MODULE_DIR$/mos-macros/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/mos-ros2-bridge/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/mos-sdk/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/mos-viz-agent/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

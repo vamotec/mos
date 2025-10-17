@@ -67,9 +67,3 @@ message TelemetryData {
 //
 // ================== 通用响应（可选扩展） ==================
 //
-// 如果未来某些 RPC 需要返回状态/错误信息，可以继续使用这个结构。
-message TelemetryResponse {
-  int64 id = 1;           // 响应 ID
-  bool success = 2;        // 是否成功
-  string message = 3;      // 响应消息
-}

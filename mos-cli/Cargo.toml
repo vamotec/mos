@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-mos-core = { workspace = true, features = ["types"] }
+mos-viz-agent = { path = "../mos-viz-agent" }
 log = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }
@@ -14,10 +14,11 @@ tonic-prost = { workspace = true }
 anyhow = { workspace = true }
 env_logger = { workspace = true }
 tokio-stream = { workspace = true }
-# These are needed for the generated gRPC code and stream handling
 chrono = { workspace = true }
-async-stream = { workspace = true }
-
+toml = { workspace = true }
+hyper-util = { workspace = true }
+serde = { workspace = true }
+tower = { workspace = true }
 
 [build-dependencies]
 tonic-prost-build = { workspace = true }

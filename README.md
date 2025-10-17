@@ -1,153 +1,75 @@
-# Mos: A Modular Operating System Core
+# MOS - A Modular Robot Operation System
 
-`mos` is a proof-of-concept project demonstrating a modern, modular operating system core written in Rust. It is designed for managing tasks, collecting telemetry, and providing a highly extensible "skill" system for robotics, IoT, or other embedded applications.
+MOS is a modular robotics operation system built on two core principles: a **Hardware Abstraction Layer (HAL)** that decouples software from specific hardware, and a powerful **Skill System** using WebAssembly (Wasm) to orchestrate complex, portable behaviors. This architecture is designed to bridge local ROS2-based robot control with cloud-based monitoring and paves the way for an AI-native control platform.
 
-The system is built as a microkernel-like architecture, where a central `mos-core` service manages system resources and exposes its functionality securely via a gRPC API.
+## Current Status
 
-## Core Features
-
-- **Asynchronous Task Scheduling**: A priority-based scheduler for managing and executing concurrent tasks.
-- **gRPC Interface**: All core functionalities are exposed through a robust, strongly-typed gRPC API defined with Protobuf.
-- **Real-time Telemetry Streaming**: A bidirectional streaming API for collecting and observing real-time system data.
-- **Extensible Skill System**: Designed to support loadable modules (skills), with a foundation for a WebAssembly (WASM) runtime using `wasmtime`.
-- **Hardware Abstraction Layer (HAL)**: A trait-based approach to decouple core logic from specific hardware drivers.
-- **Clean, Modular Architecture**: Organized as a Cargo Workspace with clear separation of concerns between the core library, CLI client, and SDK.
+The core data flow for robot state visualization is fully functional. The next major component under development is the **`mos-cloud-agent`**, which will introduce identity management, enhanced cloud service integration, and network security.
 
 ## Architecture Overview
 
-The `mos` project is a Cargo workspace composed of four main crates:
+The MOS architecture is centered around `mos-core`, which acts as the brain of the system, orchestrating skills and commands. It communicates with other services via gRPC, ROS messages, and WebSockets.
 
-- **`mos-core`**: The heart of the system. It runs as a long-lived server process, managing the task scheduler, telemetry collector, and skill runtime. It implements the server-side logic for the gRPC API.
-- **`mos-cli`**: A command-line interface (CLI) that acts as a remote control for the `mos-core` service. It is a gRPC client that allows users to schedule tasks, stream telemetry, and interact with the system.
-- **`mos-sdk`**: A Software Development Kit (SDK) intended for developers who want to build applications or skills for the `mos` ecosystem. It provides the necessary gRPC client stubs and data types to communicate with `mos-core`.
-- **`mos-macros`**: A procedural macro library designed to simplify skill development. For example, a `#[mos_skill]` macro could automate boilerplate code for skill registration and communication.
-
-### Architectural Flow Diagram
-
-This diagram illustrates the two main workflows: scheduling a task and streaming telemetry.
+### On-Robot Data Flow
 
 ```mermaid
-flowchart TD
-    %% User Interaction
-    subgraph User Interaction
-        CLI[mos-cli]
+graph TD
+    subgraph High-Level Commands
+        A[User/Cloud/AI] -- gRPC (ExecuteSkill) --> mos_core(mos-core)
     end
 
-    %% Network (gRPC)
-    subgraph Network [gRPC]
-        A(gRPC Request)
-        B(gRPC Response)
-        C(gRPC Stream)
-    end
+    subgraph Robot Local Environment
+        subgraph MOS Services
+            mos_core -- gRPC (Low-level command) --> mos_ros2(mos-ros2)
+            mos_ros2 -- ROS Topic (JointTrajectory) --> drivers(drivers/mycobot_driver)
+            drivers -- Hardware/Mock Action --> R[Robot Hardware/Mock]
+            R -- Joint States --> drivers
+            drivers -- ROS Topic (/joint_states) --> rosbridge(rosbridge_server)
+            rosbridge -- WebSocket --> mos_viz_agent(mos-viz-agent)
+        end
 
-    %% Core Service
-    subgraph Core Service [mos-core]
-        subgraph gRPC Server
-            Service(MosService)
-        end
-        subgraph Scheduler
-            SchedulerQueue(PriorityQueue<Task>)
-            SchedulerLoop[Scheduler Loop]
-        end
-        subgraph Telemetry
-            Collector[Telemetry Collector]
-            Broadcast(Broadcast Channel)
+        subgraph Cloud Communication
+             mos_viz_agent -- WebSocket --> C(Cloud Service)
         end
     end
 
-    %% Task Scheduling Flow
-    CLI -->|"1. `task schedule --priority 20`"| A -->|"2. ScheduleTask RPC"| Service
-    Service -->|"3. Send AddTask Command"| SchedulerLoop
-    SchedulerLoop -->|"4. Push Task"| SchedulerQueue
-    Service -->|"5. Return Task ID"| B -->|"6. Print ID to console"| CLI
-
-    %% Telemetry Streaming Flow
-    CLI -->|"7. `telemetry stream`"| A -->|"8. StreamTelemetry RPC"| Service
-    Service -->|"9. Subscribe to Telemetry"| Broadcast
-    Collector -->|"10. Generate & Publish Data"| Broadcast
-    Broadcast -->|"11. Forward Data"| Service
-    Service -->|"12. Stream TelemetryData"| C -->|"13. Print data to console"| CLI
+    subgraph Cloud Environment
+        C -- Data --> V(3D Visualization Frontend)
+    end
 ```
 
-**Diagram Explanation:**
+**1. The Skill-Based Command Flow:**
+1.  A high-level command originates from a user, a cloud service, or a future AI module. This command is not a simple joint movement but a call to execute a **Skill** (e.g., `pick_up_object.wasm`), sent via gRPC to `mos-core`.
+2.  `mos-core` receives the request. Its **Skill System** loads and executes the specified Wasm module.
+3.  The Wasm skill contains the complex logic for the task. It runs in a secure sandbox and generates a sequence of simpler, low-level commands (e.g., a series of joint targets).
+4.  `mos-core` sends these low-level commands via gRPC to `mos-ros2`.
+5.  From here, the flow continues as before: `mos-ros2` translates the commands into ROS messages, the `drivers` node executes them, and the robot moves.
 
-1.  **Task Scheduling**: A user runs `mos-cli task schedule`. The CLI sends a `ScheduleTask` gRPC request to the `MosService` in `mos-core`. The service generates a unique ID, sends an `AddTask` command to the scheduler's command channel, and immediately returns the new task ID to the CLI. The scheduler loop picks up the command and pushes the task into its priority queue for future execution.
+**2. State Publishing & Visualization Flow:**
+This flow remains the same. The `drivers` node publishes the robot's state to `/joint_states`, which is then relayed by `rosbridge` and `mos-viz-agent` to the cloud for real-time 3D visualization.
 
-2.  **Telemetry Streaming**: A user runs `mos-cli telemetry stream`. The CLI initiates a `StreamTelemetry` bidirectional gRPC stream. The `MosService` subscribes to a `tokio::sync::broadcast` channel. In parallel, the `TelemetryCollector` runs in a separate async task, periodically generating mock data and publishing it to the broadcast channel. The `MosService` receives this data and forwards it over the gRPC stream to the CLI, which prints it to the console.
+## Components
 
-## Quick Start
+-   **`mos-core`**: The brain of the operation. It houses the **Skill System**, which uses a WebAssembly (`Wasm`) runtime to execute complex, sandboxed behaviors. Developers can create skills (e.g., for motion planning, computer vision tasks), compile them to Wasm, and deploy them to the robot. `mos-core` orchestrates these skills and translates their output into low-level commands.
+-   **`mos-ros2`**: A ROS2-aware service that acts as a bridge. It runs a gRPC server to receive low-level commands from `mos-core` and publishes them as ROS messages for the driver nodes.
+-   **`drivers`**: This directory acts as the **Hardware Abstraction Layer (HAL)** for the MOS ecosystem. It contains robot-specific driver implementations (e.g., `mycobot_driver.py`). Each driver subscribes to the standardized ROS command topics and translates them into the specific protocol for its hardware. By isolating all hardware-dependent code here, the rest of the MOS stack (like `mos-core` and the Skill System) remains completely hardware-agnostic, achieving a true separation of software and hardware.
+-   **`mos-viz-agent`**: A microservice that bridges the local ROS world with the cloud for visualization.
+-   **`mos-cloud-agent`**: (Under Development) A planned microservice for robust cloud interactions, authentication, and security.
 
-### Prerequisites
+## Future Vision: Towards an AI-Native Robotics Platform
 
-- [Rust Toolchain](https://www.rust-lang.org/tools/install) (latest stable version recommended).
+MOS aims to evolve beyond a simple command-and-control system into a fully-fledged, AI-native robotics platform. The Skill System is the key to this vision.
 
-### 1. Build the Project
+**1. AI as the Ultimate Skill Composer:**
+Instead of a human triggering a skill, a master AI will orchestrate them. This AI will act as the central brain, making high-level decisions. For example, a user could give a natural language command like, "Get me the water bottle from the kitchen."
+-   An **LLM (Large Language Model)** integrated with MOS would parse this command.
+-   A **Planning AI** would decompose the task into a sequence of skills: `navigate("kitchen").wasm` -> `find_object("bottle").wasm` -> `pick_up_object.wasm` -> `navigate("user_location").wasm` -> `place_object.wasm`.
+-   The AI would then command `mos-core` to execute this skill sequence.
 
-Clone the repository and use Cargo to build the entire workspace. This will compile all crates and handle dependencies.
+**2. A Self-Learning Ecosystem:**
+The platform will not just execute predefined skills; it will learn new ones. Using **Reinforcement Learning (RL)** in cloud-based simulations, the AI can discover novel solutions to complex problems (e.g., learning to gracefully open a drawer). Once a policy is learned, it can be compiled into a new, highly-optimized Wasm skill and deployed to the entire fleet of robots. The Skill System becomes a medium for distributing learned intelligence.
 
-```bash
-# Navigate to the project root directory
-cd /Users/mofan/Robot/mos
+**3. Real-time Perception and Adaptation:**
+The AI will be connected to a real-time perception system (e.g., cameras, LiDAR). This allows skills to be dynamic and reactive. A `pick_up_object.wasm` skill won't just execute a blind trajectory; it will receive real-time coordinates from a vision AI, allowing it to adapt to objects that have been moved or to avoid unexpected obstacles.
 
-# Build the entire project
-cargo build
-```
-
-### 2. Run the Core Service
-
-Open a terminal and run the `mos-core` binary. This will start the gRPC server, which will listen for incoming requests.
-
-```bash
-# From the project root
-cargo run -p mos-core
-
-# You should see output like:
-# INFO  mos_core] gRPC server listening on [::1]:50051
-# INFO  mos_core::scheduler::scheduler] Scheduler is running.
-# INFO  mos_core::telemetry::collector] Telemetry collector is running.
-```
-
-### 3. Use the CLI
-
-Open a **second terminal** to interact with the service using `mos-cli`.
-
-**Schedule a new task:**
-
-```bash
-# From the project root
-cargo run -p mos-cli -- task schedule --priority 20
-
-# Expected output:
-# Successfully scheduled task with ID: 1
-```
-
-In the `mos-core` terminal, you will see the corresponding log:
-`INFO  mos_core::grpc::server] Received schedule_task request: Task { id: 1, priority: 20, state: Pending }`
-
-**Stream telemetry data:**
-
-```bash
-# From the project root
-cargo run -p mos-cli -- telemetry stream
-
-# Expected output (data will stream continuously):
-# Receiving telemetry data (Press Ctrl+C to stop):
-# [2025-10-10T12:00:01Z] Source: mock_sensor, Value: 0.9511, Timestamp: 1760000001
-# [2025-10-10T12:00:02Z] Source: mock_sensor, Value: 0.9987, Timestamp: 1760000002
-# ...
-```
-
-## Module Deep Dive
-
-- **Scheduler**: Implemented in `mos-core/src/scheduler`, it uses a `tokio::sync::mpsc` channel to receive commands and a `std::collections::BinaryHeap` to act as a priority queue for tasks.
-- **Skill System & WASM**: The foundation is laid in `mos-core/src/skill`. It uses `wasmtime` to provide a runtime for executing sandboxed WebAssembly modules. The API is designed around a `Skill` trait, allowing for different kinds of skills (e.g., native Rust skills or WASM skills).
-- **gRPC API**: The API contract is defined in `mos-core/proto/mos.proto`. It specifies two main RPCs: `ScheduleTask` (unary) and `StreamTelemetry` (bidirectional streaming).
-
-## Future Work
-
-This project serves as a strong foundation. Future enhancements could include:
-
-- **Full Skill Execution**: Implement the logic for the scheduler to actually pop tasks from the queue and execute them (e.g., call the `Skill::call` method).
-- **WASM Skill Loading**: Implement a mechanism to load `.wasm` files from disk and register them as `WasmSkill`s with the scheduler.
-- **Resource Management**: Integrate the `ResourceManager` with the scheduler to ensure tasks can safely acquire and release locks on shared resources (e.g., hardware).
-- **OTA Implementation**: Flesh out the Over-the-Air update agent to perform real update checks and apply them.
+In this future, the AI provides the **"what"** (the goal), and the Wasm skills provide a safe, efficient, and portable **"how"** (the execution). MOS will become a seamless bridge between abstract intelligence and real-world physical action.
